@@ -1,13 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS
-
 #include <stdio.h>
 #include <stdlib.h>
 #include "string.h"
 #include <string.h>
-
-
-
-
 
 MY_STRING my_string_init_default(void) {
     My_string* hMy_string = (My_string*)malloc(sizeof(My_string));
@@ -15,7 +10,6 @@ MY_STRING my_string_init_default(void) {
         return NULL;
     }
     
-
     // Initialize with default capacity
     hMy_string->size = 0;
     hMy_string->capacity = 7;
@@ -28,7 +22,7 @@ MY_STRING my_string_init_default(void) {
     return hMy_string;
 }
 
-void my_string_destroy(My_string** phMy_string) {
+void my_string_destroy(MY_STRING* phMy_string) {
     if (phMy_string == NULL || *phMy_string == NULL) {
         return;
     }
@@ -64,40 +58,43 @@ MY_STRING my_string_init_c_string(const char* c_string) {
     return hMy_string;
 }
 
-
-int my_string_get_capacity(My_string* hMy_string) {
+int my_string_get_capacity(MY_STRING hMy_string) {
     if (hMy_string == NULL) {
         return -1; // Or handle the error as appropriate
     }
-    return hMy_string->capacity;
+    return ((My_string*)hMy_string)->capacity;
 }
-int my_string_get_size(My_string* hMy_string) {
+
+int my_string_get_size(MY_STRING hMy_string) {
     if (hMy_string == NULL) {
         return -1; // Or handle the error as appropriate
     }
-    return hMy_string->size;
+    return ((My_string*)hMy_string)->size;
 }
 
-int my_string_compare(My_string* hLeft_string, My_string* hRight_string) {
+int my_string_compare(MY_STRING hLeft_string, MY_STRING hRight_string) {
     if (hLeft_string == NULL || hRight_string == NULL) {
         return -2; // Or handle the error as appropriate
     }
 
-    int min_size = hLeft_string->size < hRight_string->size ? hLeft_string->size : hRight_string->size;
+    My_string* left = (My_string*)hLeft_string;
+    My_string* right = (My_string*)hRight_string;
+
+    int min_size = left->size < right->size ? left->size : right->size;
     for (int i = 0; i < min_size; ++i) {
-        if (hLeft_string->data[i] < hRight_string->data[i]) {
+        if (left->data[i] < right->data[i]) {
             return -1;
         }
-        else if (hLeft_string->data[i] > hRight_string->data[i]) {
+        else if (left->data[i] > right->data[i]) {
             return 1;
         }
     }
 
     // If all characters are the same up to min_size, the shorter string is considered smaller
-    if (hLeft_string->size < hRight_string->size) {
+    if (left->size < right->size) {
         return -1;
     }
-    else if (hLeft_string->size > hRight_string->size) {
+    else if (left->size > right->size) {
         return 1;
     }
     else {
@@ -105,14 +102,13 @@ int my_string_compare(My_string* hLeft_string, My_string* hRight_string) {
     }
 }
 
-
 Status my_string_extraction(MY_STRING hMy_string, FILE* fp) {
     if (hMy_string == NULL || fp == NULL) {
         return FAILURE;
     }
 
     char c;
-    MY_STRING pMy_string = (MY_STRING)hMy_string;
+    My_string* pMy_string = (My_string*)hMy_string;
 
     do {
         c = fgetc(fp);
@@ -123,7 +119,7 @@ Status my_string_extraction(MY_STRING hMy_string, FILE* fp) {
 
 
     while (!isspace(c)) {
-        if (my_string_push_back(pMy_string, c) == FAILURE) {
+        if (my_string_push_back(hMy_string, c) == FAILURE) {
             return FAILURE;
         }
         c = fgetc(fp);
@@ -142,59 +138,44 @@ Status my_string_insertion(MY_STRING hMy_string, FILE* fp) {
         return FAILURE;
     }
 
-    MY_STRING pMy_string = (MY_STRING)hMy_string;
-    int size = my_string_get_size(pMy_string);
-    char* str = my_string_c_str(pMy_string);
+    My_string* pMy_string = (My_string*)hMy_string;
+    int size = my_string_get_size(hMy_string);
+    char* str = my_string_c_str(hMy_string);
 
     if (fwrite(str, sizeof(char), size, fp) != size) {
         return FAILURE;
     }
 
     return SUCCESS;
-
-
 }
 
+Status my_string_push_back(MY_STRING hMy_string, char item) {
+    My_string* pString = (My_string*)hMy_string;
 
-
-Status my_string_push_back(My_string* hMy_string, char character) {
-    if (hMy_string == NULL) {
-        return FAILURE; // Or handle the error as appropriate
-    }
-
-    // Ensure capacity
-    if (hMy_string->size >= hMy_string->capacity) {
-        int new_capacity = (hMy_string->capacity == 0) ? 1 : 2 * hMy_string->capacity; // Double the capacity
-        char* new_data = realloc(hMy_string->data, new_capacity * sizeof(char));
-        if (new_data == NULL) {
-            return FAILURE; // Or handle the error as appropriate
+    // Check if resizing is needed
+    if (pString->size >= pString->capacity) {
+        // Perform resizing
+        // Assuming my_string_resize is implemented elsewhere
+        // If not, you need to provide the implementation
+        if (!my_string_resize(pString, pString->capacity * 2)) {
+            return FAILURE; 
         }
-        hMy_string->data = new_data;
-        hMy_string->capacity = new_capacity;
     }
 
-    // Append the character
-    hMy_string->data[hMy_string->size++] = character;
+    // Append the character at the end of the string
+    pString->data[pString->size++] = item;
 
     return SUCCESS;
 }
 
-char* my_string_c_str(My_string* hMy_string) {
-    if (hMy_string == NULL) {
+char* my_string_c_str(MY_STRING hMy_string) {
+    My_string* pMy_string = (My_string*)hMy_string;
+
+    if (pMy_string == NULL) {
         return NULL;
     }
 
     // Allocate memory for the null-terminated string
-    char* c_str = malloc((hMy_string->size + 1) * sizeof(char));
+    char* c_str = malloc((pMy_string->size + 1) * sizeof(char));
     if (c_str == NULL) {
-        return NULL; // Or handle the error as appropriate
-    }
-
-    // Copy the characters from the My_string data array to the C string
-    for (int i = 0; i < hMy_string->size; ++i) {
-        c_str[i] = hMy_string->data[i];
-    }
-    c_str[hMy_string->size] = '\0'; // Null-terminate the string
-
-    return c_str;
-}
+        return
